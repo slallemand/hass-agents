@@ -1,32 +1,7 @@
-# Example Home Assistant package — copy into config/packages/
-# Requires MQTT integration pointing at the same broker as hass-agents.
-
-mqtt:
-  sensor:
-    - name: "House AI Conso Daily Headline"
-      unique_id: house_ai_consumption_daily_headline
-      state_topic: "house/agents/consumption/summary/daily"
-      value_template: "{{ value_json.headline }}"
-      json_attributes_topic: "house/agents/consumption/summary/daily"
-      json_attributes_template: "{{ value_json | tojson }}"
-
-    - name: "House AI Conso Weekly Headline"
-      unique_id: house_ai_consumption_weekly_headline
-      state_topic: "house/agents/consumption/summary/weekly"
-      value_template: "{{ value_json.headline }}"
-      json_attributes_topic: "house/agents/consumption/summary/weekly"
-
-    - name: "House AI Conso Monthly Headline"
-      unique_id: house_ai_consumption_monthly_headline
-      state_topic: "house/agents/consumption/summary/monthly"
-      value_template: "{{ value_json.headline }}"
-      json_attributes_topic: "house/agents/consumption/summary/monthly"
-
-    - name: "House AI Conso Daily Severity"
-      unique_id: house_ai_consumption_daily_severity
-      state_topic: "house/agents/consumption/report/daily"
-      value_template: "{{ value_json.severity }}"
-      json_attributes_topic: "house/agents/consumption/report/daily"
+# Optional Home Assistant package — schedules + notify only.
+# Sensors are created automatically via MQTT discovery when `hass-agents serve` starts
+# (device « Hass Agents », entities sensor.house_ai_conso_*).
+# Copy into config/packages/ only if you want HA to request reports / notify on anomalies.
 
 automation:
   - id: house_ai_consumption_daily_request

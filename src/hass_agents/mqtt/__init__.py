@@ -41,13 +41,17 @@ class MqttBus:
             self._client.disconnect()
             self._client = None
 
-    def publish_report(self, period: str, payload: dict[str, Any]) -> str:
-        topic = f"{self.topic_prefix}/agents/consumption/report/{period}"
-        body = json.dumps(payload, default=str)
+    def publish_retained(self, topic: str, payload: str | dict[str, Any], *, qos: int = 1) -> None:
+        """Publish a retained message (MQTT discovery configs, reports, etc.)."""
+        body = payload if isinstance(payload, str) else json.dumps(payload, default=str)
         if self._client is None:
             self.connect()
         assert self._client is not None
-        self._client.publish(topic, body, qos=1, retain=True)
+        self._client.publish(topic, body, qos=qos, retain=True)
+
+    def publish_report(self, period: str, payload: dict[str, Any]) -> str:
+        topic = f"{self.topic_prefix}/agents/consumption/report/{period}"
+        self.publish_retained(topic, payload)
         summary_topic = f"{self.topic_prefix}/agents/consumption/summary/{period}"
         summary = {
             "headline": payload.get("headline"),
@@ -57,7 +61,7 @@ class MqttBus:
             "energy_kwh": (payload.get("totals") or {}).get("energy_kwh"),
             "cost_eur": (payload.get("totals") or {}).get("cost_eur"),
         }
-        self._client.publish(summary_topic, json.dumps(summary, default=str), qos=1, retain=True)
+        self.publish_retained(summary_topic, summary)
         logger.info("Published report to %s", topic)
         return topic
 

@@ -43,6 +43,8 @@ MQTT_PORT=1883
 MQTT_USERNAME=...
 MQTT_PASSWORD=...
 MQTT_TOPIC_PREFIX=house
+MQTT_DISCOVERY=true            # sensors HA via discovery (défaut)
+MQTT_DISCOVERY_PREFIX=homeassistant
 ```
 
 ```bash
@@ -72,8 +74,19 @@ hass-agents analyze-once --period daily
 hass-agents analyze-once --period weekly --mqtt
 hass-agents analyze-once --period monthly -o reports/monthly.json
 
-# Écoute MQTT house/agents/consumption/request (même broker que HA)
+# Écoute MQTT + publie la discovery HA (sensors)
 hass-agents serve
+```
+
+Au démarrage de `serve`, les sensors MQTT discovery sont publiés (retain) sous le device **Hass Agents** :
+`sensor.house_ai_conso_{daily,weekly,monthly}_{headline,severity}`.  
+Rien à copier dans HA pour les voir (intégration MQTT + discovery activée, défaut).
+
+Première analyse pour peupler les états :
+
+```bash
+hass-agents analyze-once --period daily --mqtt
+# ou publish MQTT sur house/agents/consumption/request
 ```
 
 Docker :
@@ -87,10 +100,28 @@ docker compose up --build -d
 
 Base utilisée : `registry.access.redhat.com/hi/python:3.12` (+ `-builder` multi-stage).
 
-## Package Home Assistant
+### Image GHCR (CI)
 
-Copier [`homeassistant/packages/consumption_ai.yaml`](homeassistant/packages/consumption_ai.yaml) dans `config/packages/` (packages activés).  
-Automations : demande daily 21h, weekly dimanche, monthly le 1er ; notification si `warn`/`critical`.
+Sur push `main` / tags `v*` (et `workflow_dispatch`), GitHub Actions build et pousse vers GHCR :
+
+```bash
+docker pull ghcr.io/<owner>/hass-agents:latest
+# ou :main / :v1.0.0 / :<sha>
+```
+
+Dans `docker-compose.yml`, remplacer le `build:` local par :
+
+```yaml
+image: ghcr.io/<owner>/hass-agents:latest
+```
+
+Si le pull de la base Red Hat échoue en CI, ajouter les secrets repo `RH_REGISTRY_USERNAME` et `RH_REGISTRY_PASSWORD`.
+
+## Package Home Assistant (optionnel)
+
+Les **sensors** ne nécessitent plus ce package — ils viennent de la MQTT discovery.
+
+Copier [`homeassistant/packages/consumption_ai.yaml`](homeassistant/packages/consumption_ai.yaml) dans `config/packages/` seulement si tu veux les automations : demande daily 21h, weekly dimanche, monthly le 1er ; notification si `warn`/`critical`.
 
 ## Tests
 

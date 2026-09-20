@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     mqtt_username: str = ""
     mqtt_password: str = ""
     mqtt_topic_prefix: str = "house"
+    mqtt_discovery: bool = True
+    mqtt_discovery_prefix: str = "homeassistant"
 
     openai_api_key: str = ""
     openai_api_base: str = ""

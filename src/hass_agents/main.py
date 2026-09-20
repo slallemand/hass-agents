@@ -42,6 +42,12 @@ def cmd_serve(args: argparse.Namespace) -> int:
         settings.mqtt_topic_prefix,
     )
     bus.connect()
+
+    if settings.mqtt_discovery:
+        from hass_agents.mqtt.discovery import publish_discovery
+
+        publish_discovery(bus, discovery_prefix=settings.mqtt_discovery_prefix)
+
     topic = bus.request_topic()
     logger.info("Listening for requests on %s", topic)
 
