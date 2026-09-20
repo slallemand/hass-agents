@@ -1,0 +1,7 @@
+{
+  "mcpServers": {
+    "hass": {
+      "url": "https://hass.svc.cm.lallemand.fr/api/webhook/mcp_1a78ba8d6bf6483c2241d602e46ff7ea"
+    }
+  }
+}

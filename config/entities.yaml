@@ -1,0 +1,52 @@
+# Entity mapping derived from HA Energy Dashboard + presence/weather
+grid:
+  energy_total_hc: sensor.energy_total_hc
+  energy_total_hp: sensor.energy_total_hp
+  energy_daily: sensor.energy_daily_2
+  energy_daily_hc: sensor.energy_daily_hc_2
+  energy_daily_hp: sensor.energy_daily_hp_2
+  cost_daily: sensor.energy_daily_cost
+  price_hc: input_number.energy_price_hc
+  price_hp: input_number.energy_price_hp
+
+solar:
+  lifetime: sensor.solar_total_lifetime_production
+
+devices:
+  - id: multimedia_salon
+    name: Multimedia Salon
+    energy: sensor.energy_multimedia_salon_energy
+  - id: lave_linge
+    name: Machine à laver
+    energy: sensor.energie_machine_a_laver_energy
+  - id: tesla
+    name: Tesla
+    energy: sensor.tesla_charging_energy_home
+  - id: congel_frigo
+    name: Congélateur
+    energy: sensor.energy_congel_frigo_energy
+  - id: info_bureau
+    name: Informatique Bureau
+    energy: sensor.energy_informatique_bureau_energy
+  - id: chauffe_eau
+    name: Chauffe Eau
+    energy: sensor.chauffeeau_energy
+  - id: pac_compresseur
+    name: PAC-compresseur
+    energy: sensor.salon_compressor_energy_consumption
+  - id: pac_salon
+    name: PAC-Salon
+    energy: sensor.salon_energy_consumption
+
+context:
+  pac_sejour: climate.pac_sejour
+  tesla_charger_power: sensor.tesla_charger_power_w
+  outdoor_temp: sensor.temperatures_exterieures
+  weather: weather.cormeilles_en_parisis
+  zone_home: zone.home
+  household:
+    - person.sebastien
+    - person.severine
+    - person.mathilde
+    - person.alain
+    - person.monique

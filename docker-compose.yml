@@ -1,0 +1,19 @@
+services:
+  hass-agents:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        RH_REGISTRY: registry.access.redhat.com
+        PYTHON_SERIES: "3.12"
+    env_file:
+      - .env
+    environment:
+      ENTITIES_CONFIG: /opt/app-root/src/config/entities.yaml
+    volumes:
+      - ./config:/opt/app-root/src/config:ro,z
+      - ./reports:/opt/app-root/src/reports,z
+    command: ["/opt/app-root/venv/bin/hass-agents", "serve"]
+    restart: unless-stopped
+    # Accès au broker MQTT déjà utilisé par Home Assistant (voir MQTT_* dans .env)
+    # network_mode: host   # décommenter si le broker n’est joignable que depuis le host

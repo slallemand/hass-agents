@@ -1,0 +1,85 @@
+# Example Home Assistant package — copy into config/packages/
+# Requires MQTT integration pointing at the same broker as hass-agents.
+
+mqtt:
+  sensor:
+    - name: "House AI Conso Daily Headline"
+      unique_id: house_ai_consumption_daily_headline
+      state_topic: "house/agents/consumption/summary/daily"
+      value_template: "{{ value_json.headline }}"
+      json_attributes_topic: "house/agents/consumption/summary/daily"
+      json_attributes_template: "{{ value_json | tojson }}"
+
+    - name: "House AI Conso Weekly Headline"
+      unique_id: house_ai_consumption_weekly_headline
+      state_topic: "house/agents/consumption/summary/weekly"
+      value_template: "{{ value_json.headline }}"
+      json_attributes_topic: "house/agents/consumption/summary/weekly"
+
+    - name: "House AI Conso Monthly Headline"
+      unique_id: house_ai_consumption_monthly_headline
+      state_topic: "house/agents/consumption/summary/monthly"
+      value_template: "{{ value_json.headline }}"
+      json_attributes_topic: "house/agents/consumption/summary/monthly"
+
+    - name: "House AI Conso Daily Severity"
+      unique_id: house_ai_consumption_daily_severity
+      state_topic: "house/agents/consumption/report/daily"
+      value_template: "{{ value_json.severity }}"
+      json_attributes_topic: "house/agents/consumption/report/daily"
+
+automation:
+  - id: house_ai_consumption_daily_request
+    alias: "House AI — demande rapport conso quotidien"
+    trigger:
+      - platform: time
+        at: "21:00:00"
+    action:
+      - service: mqtt.publish
+        data:
+          topic: house/agents/consumption/request
+          payload: '{"period":"daily"}'
+
+  - id: house_ai_consumption_weekly_request
+    alias: "House AI — demande rapport conso hebdo"
+    trigger:
+      - platform: time
+        at: "21:05:00"
+    condition:
+      - condition: time
+        weekday:
+          - sun
+    action:
+      - service: mqtt.publish
+        data:
+          topic: house/agents/consumption/request
+          payload: '{"period":"weekly"}'
+
+  - id: house_ai_consumption_monthly_request
+    alias: "House AI — demande rapport conso mensuel"
+    trigger:
+      - platform: time
+        at: "09:00:00"
+    condition:
+      - condition: template
+        value_template: "{{ now().day == 1 }}"
+    action:
+      - service: mqtt.publish
+        data:
+          topic: house/agents/consumption/request
+          payload: '{"period":"monthly"}'
+
+  - id: house_ai_consumption_notify_on_warn
+    alias: "House AI — notification si anomalie conso"
+    trigger:
+      - platform: mqtt
+        topic: house/agents/consumption/report/daily
+    condition:
+      - condition: template
+        value_template: "{{ trigger.payload_json.severity in ['warn', 'critical'] }}"
+    action:
+      - service: persistent_notification.create
+        data:
+          title: "Anomalie consommation"
+          message: "{{ trigger.payload_json.headline }}\n\n{{ trigger.payload_json.summary }}"
+          notification_id: house_ai_consumption_anomaly
