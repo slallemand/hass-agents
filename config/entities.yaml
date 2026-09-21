@@ -31,6 +31,7 @@ devices:
   - id: chauffe_eau
     name: Chauffe Eau
     energy: sensor.chauffeeau_energy
+    # Conso électrique corrélée à la conso d'eau (voir context.water_*)
   - id: pac_compresseur
     name: PAC-compresseur
     energy: sensor.salon_compressor_energy_consumption
@@ -44,6 +45,10 @@ context:
   outdoor_temp: sensor.temperatures_exterieures
   weather: weather.cormeilles_en_parisis
   zone_home: zone.home
+  # Compteur d'eau — explique souvent les hausses chauffe-eau
+  water_total: sensor.water_total_eau
+  water_daily: sensor.water_daily
+  water_flow: sensor.water_debit_eau
   household:
     - person.sebastien
     - person.severine

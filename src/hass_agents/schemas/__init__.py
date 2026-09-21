@@ -78,6 +78,17 @@ class PresenceContext(BaseModel):
     by_person: list[PersonPresence] = Field(default_factory=list)
 
 
+class WaterContext(BaseModel):
+    """House water usage — primary driver of water-heater electricity."""
+
+    volume_l: float | None = None
+    volume_m3: float | None = None
+    baseline_mean_l: float | None = None
+    delta_pct: float | None = None
+    flow_l_per_min: float | None = None
+    unit: str = "L"
+
+
 class AnomalyFinding(BaseModel):
     severity: Severity
     metric: str
@@ -116,6 +127,7 @@ class HouseConsumptionContext(BaseModel):
     candidate_anomalies: list[AnomalyFinding] = Field(default_factory=list)
     weather: WeatherContext = Field(default_factory=WeatherContext)
     presence: PresenceContext = Field(default_factory=PresenceContext)
+    water: WaterContext = Field(default_factory=WaterContext)
     device_totals: list[DeviceTotal] = Field(default_factory=list)
     totals: ReportTotals = Field(default_factory=ReportTotals)
     notes: list[str] = Field(default_factory=list)
@@ -138,3 +150,4 @@ class ConsumptionReport(BaseModel):
     llm_used: bool = False
     weather: WeatherContext | None = None
     presence: PresenceContext | None = None
+    water: WaterContext | None = None

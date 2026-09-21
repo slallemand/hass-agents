@@ -349,7 +349,10 @@ def enrich_anomaly_with_context(
     finding: AnomalyFinding,
     weather: WeatherContext,
     presence: PresenceContext,
+    water: "WaterContext | None" = None,
 ) -> AnomalyFinding:
+    from hass_agents.schemas import WaterContext
+
     bits: list[str] = []
     if weather.outdoor_temp_mean is not None:
         bits.append(f"T°ext moy={weather.outdoor_temp_mean:.1f}°C")
@@ -359,10 +362,34 @@ def enrich_anomaly_with_context(
         bits.append(f"maison vide≈{presence.empty_house_ratio * 100:.0f}%")
     if presence.occupants_avg is not None:
         bits.append(f"occupants≈{presence.occupants_avg:.1f}")
+
+    water = water or WaterContext()
+    is_water_heater = _is_water_heater_finding(finding)
+    if is_water_heater and water.volume_l is not None:
+        water_bit = f"eau={water.volume_l:.0f} L"
+        if water.delta_pct is not None:
+            water_bit += f" ({water.delta_pct:+.0f}% vs baseline)"
+        bits.append(water_bit)
+        finding.evidence = {
+            **finding.evidence,
+            "water_volume_l": water.volume_l,
+            "water_delta_pct": water.delta_pct,
+        }
+        if not finding.hypothesis or "eau" not in finding.hypothesis.lower():
+            finding.hypothesis = (
+                (finding.hypothesis + " " if finding.hypothesis else "")
+                + "La conso électrique du chauffe-eau suit souvent la conso d'eau globale."
+            ).strip()
+
     finding.evidence = {**finding.evidence, "context": ", ".join(bits)}
     if bits:
         finding.hypothesis = f"{finding.hypothesis} Contexte: {', '.join(bits)}."
     return finding
+
+
+def _is_water_heater_finding(finding: AnomalyFinding) -> bool:
+    blob = f"{finding.metric} {finding.entity_id or ''}".lower()
+    return any(tok in blob for tok in ("chauffe", "chauffeeau", "water_heater", "ecs"))
 
 
 def build_heuristic_report(ctx: HouseConsumptionContext) -> "ConsumptionReport":
@@ -394,6 +421,16 @@ def build_heuristic_report(ctx: HouseConsumptionContext) -> "ConsumptionReport":
         checks.append(f"Vérifier {f.metric} ({f.entity_id or 'n/a'})")
     if presence_empty_high(ctx.presence) and energy_high(findings):
         checks.append("Maison souvent vide alors que conso élevée — vérifier appareils laissés allumés")
+    if any(_is_water_heater_finding(f) for f in findings) and ctx.water.volume_l is not None:
+        checks.append(
+            "Comparer chauffe-eau kWh et volume d'eau (L) : hausse d'eau → hausse ECS attendue"
+        )
+
+    water_line = "n/a"
+    if ctx.water.volume_l is not None:
+        water_line = f"{ctx.water.volume_l:.0f} L"
+        if ctx.water.delta_pct is not None:
+            water_line += f" ({ctx.water.delta_pct:+.0f}% vs baseline)"
 
     narrative = [
         f"# Rapport consommation ({ctx.period.value})",
@@ -406,6 +443,7 @@ def build_heuristic_report(ctx: HouseConsumptionContext) -> "ConsumptionReport":
         f"- Météo: T°ext moy={ctx.weather.outdoor_temp_mean}, état={ctx.weather.weather_state}",
         f"- Présence: occupants≈{ctx.presence.occupants_avg},"
         f" vide≈{(ctx.presence.empty_house_ratio or 0) * 100:.0f}%",
+        f"- Eau: {water_line} (pilote souvent la conso chauffe-eau)",
         "",
         "## Écarts",
     ]
@@ -435,6 +473,7 @@ def build_heuristic_report(ctx: HouseConsumptionContext) -> "ConsumptionReport":
         llm_used=False,
         weather=ctx.weather,
         presence=ctx.presence,
+        water=ctx.water,
     )
 
 

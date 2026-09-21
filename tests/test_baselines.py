@@ -105,3 +105,28 @@ def test_heuristic_report():
     assert report.severity == Severity.WARN
     assert "20" in report.headline or "kWh" in report.headline
     assert report.narrative_md
+
+
+def test_water_heater_enriched_with_water_volume():
+    from hass_agents.analytics.baselines import enrich_anomaly_with_context
+    from hass_agents.schemas import WaterContext
+
+    finding = AnomalyFinding(
+        severity=Severity.WARN,
+        metric="Chauffe Eau",
+        entity_id="sensor.chauffeeau_energy",
+        window="daily",
+        observed=6.0,
+        expected=4.0,
+        delta_pct=50.0,
+        hypothesis="Hausse chauffe-eau",
+    )
+    enriched = enrich_anomaly_with_context(
+        finding,
+        WeatherContext(),
+        PresenceContext(occupants_avg=3.0),
+        WaterContext(volume_l=250.0, delta_pct=40.0),
+    )
+    assert enriched.evidence.get("water_volume_l") == 250.0
+    assert "eau=250" in enriched.evidence.get("context", "")
+    assert "eau" in enriched.hypothesis.lower()

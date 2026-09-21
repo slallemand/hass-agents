@@ -53,10 +53,14 @@ def run_llm_crew(ctx: HouseConsumptionContext, settings: Settings) -> Consumptio
     )
     anomaly_agent = Agent(
         role="Détecteur d'anomalies",
-        goal="Prioriser et expliquer les candidate_anomalies avec météo et présence",
+        goal="Prioriser et expliquer les candidate_anomalies avec météo, présence et eau",
         backstory=(
             "Tu expliques les écarts déjà détectés (z-score, delta%). "
-            "Tu correlès avec T° ext, degree-days et occupation de la maison."
+            "Tu correlès avec T° ext, degree-days, occupation, et volume d'eau. "
+            "IMPORTANT: la conso électrique du chauffe-eau / ECS dépend surtout "
+            "de la consommation d'eau globale (douches, vaisselle, lessive) — "
+            "ne traite pas une hausse chauffe-eau comme anomalie technique si "
+            "le volume d'eau a augmenté dans les mêmes proportions."
         ),
         llm=llm,
         verbose=False,
@@ -79,7 +83,7 @@ def run_llm_crew(ctx: HouseConsumptionContext, settings: Settings) -> Consumptio
     task_data = Task(
         description=(
             f"Période={ctx.period.value}. Voici le contexte JSON:\n{context_json}\n\n"
-            "Résume en bullet points: totaux kWh/€, top devices, météo, présence. "
+            "Résume en bullet points: totaux kWh/€, top devices, météo, présence, eau (L). "
             "N'invente aucun chiffre."
         ),
         expected_output="Résumé factuel en français (bullet points).",
@@ -88,7 +92,8 @@ def run_llm_crew(ctx: HouseConsumptionContext, settings: Settings) -> Consumptio
     task_anomaly = Task(
         description=(
             "À partir du résumé et du contexte, priorise les anomalies candidates. "
-            "Pour chaque anomalie importante: hypothèse plausible liée à météo/présence. "
+            "Pour chaque anomalie importante: hypothèse plausible liée à météo/présence/eau. "
+            "Pour le chauffe-eau: compare toujours avec water.volume_l / water.delta_pct. "
             "Si aucune anomalie, dis-le clairement."
         ),
         expected_output="Liste priorisée d'anomalies avec hypothèses.",

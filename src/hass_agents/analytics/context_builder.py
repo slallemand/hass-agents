@@ -28,6 +28,7 @@ from hass_agents.schemas import (
     HouseConsumptionContext,
     ReportPeriod,
     ReportTotals,
+    WaterContext,
 )
 
 logger = logging.getLogger(__name__)
@@ -62,11 +63,23 @@ def build_context(
     weather_entity = entities.context.get("weather")
     zone_home = entities.context.get("zone_home")
     household: list[str] = list(entities.context.get("household") or [])
+    water_total = entities.context.get("water_total")
+    water_daily = entities.context.get("water_daily")
+    water_flow = entities.context.get("water_flow")
 
     device_ids = [d.energy for d in entities.devices]
     stat_ids = [
         eid
-        for eid in [energy_daily, energy_hc, energy_hp, cost_daily, outdoor, *device_ids]
+        for eid in [
+            energy_daily,
+            energy_hc,
+            energy_hp,
+            cost_daily,
+            outdoor,
+            water_total,
+            water_daily,
+            *device_ids,
+        ]
         if eid
     ]
     solar = entities.solar.get("lifetime")
@@ -179,7 +192,42 @@ def build_context(
         occupants_now=occupants_now,
     )
 
-    anomalies = [enrich_anomaly_with_context(a, weather, presence) for a in anomalies]
+    # Water usage (explains water-heater electricity)
+    water = WaterContext()
+    water_stat_id = water_total or water_daily
+    if water_stat_id:
+        rows = stats.get(water_stat_id, [])
+        points = extract_daily_changes(rows)
+        if points:
+            bl = build_baseline(
+                entity_id=water_stat_id,
+                label="Consommation d'eau",
+                points=points,
+                period_start=period_start,
+                period_end=period_end,
+                unit="L",
+            )
+            baselines.append(bl)
+            water.volume_l = bl.observed
+            if bl.observed is not None:
+                water.volume_m3 = bl.observed / 1000.0
+            water.baseline_mean_l = bl.baseline_mean
+            water.delta_pct = bl.delta_pct
+        elif water_daily:
+            st = ha.get_state(water_daily)
+            if st:
+                vol = HAClient.parse_float(st.get("state"))
+                water.volume_l = vol
+                if vol is not None:
+                    water.volume_m3 = vol / 1000.0
+    if water_flow:
+        st = ha.get_state(water_flow)
+        if st:
+            water.flow_l_per_min = HAClient.parse_float(st.get("state"))
+
+    anomalies = [
+        enrich_anomaly_with_context(a, weather, presence, water) for a in anomalies
+    ]
     anomalies.sort(key=lambda a: {"critical": 0, "warn": 1, "info": 2}[a.severity.value])
 
     def _obs(label_substr: str) -> float | None:
@@ -215,6 +263,13 @@ def build_context(
         notes.append("Pas de stats T° ext — météo partielle")
     if not household:
         notes.append("Pas de household configuré — présence partielle")
+    if water.volume_l is None:
+        notes.append("Pas de stats eau — corrélation chauffe-eau limitée")
+    else:
+        notes.append(
+            "Rappel: la conso électrique du chauffe-eau est fortement liée "
+            "au volume d'eau consommé dans la maison."
+        )
 
     return HouseConsumptionContext(
         period=period,
@@ -225,6 +280,7 @@ def build_context(
         candidate_anomalies=anomalies,
         weather=weather,
         presence=presence,
+        water=water,
         device_totals=device_totals,
         totals=totals,
         notes=notes,
